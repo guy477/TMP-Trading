@@ -24,7 +24,7 @@ base_url = cred['endpoint']
 api_key_id = cred['key']
 api_secret = cred['secret']
 mailgun = cred['mailgun']
-mailgunURL = cred['url']
+mailgunURL = cred['URL']
 email = cred['email']
 
 
@@ -60,8 +60,9 @@ def get_historical(symbols_h):
     minn = {}
     day = {}
     coun = 0
-
+    print(symbols_h)
     for s in symbols_h:
+        
         day[s] = api.polygon.historic_agg(size="minute", symbol=s, limit=1200).df
         coun+=1
     print("{}/{}".format(coun, len(symbols_h)))
@@ -76,17 +77,22 @@ def get_hour_historical(symbols_h):
     count = 0
     print("min5_history")
     for s in symbols_h:
+        s = s.ticker
         truemins = api.polygon.historic_agg(size="minute", symbol=s, limit=4320).df
         truehourh = copy.deepcopy(truemins)
+        
         count+=1
+
+        mins[s] = copy.deepcopy(truemins)
         truemins['volume'] = mins[s]['volume'].dropna().resample('5min', loffset='5min').sum()
         truemins['open'] = mins[s]['open'].dropna().resample('5min', loffset='5min').first()
         truemins['close']= mins[s]['close'].dropna().resample('5min', loffset='5min').last()
         truemins['high'] = mins[s]['high'].dropna().resample('5min', loffset='5min').max()
         truemins['low'] = mins[s]['low'].dropna().resample('5min', loffset='5min').min()
         mins[s] = truemins.dropna().resample('60min', loffset='5min').sum()
+        
 
-
+        hour[s] = copy.deepcopy(truemins)
         truehourh['volume'] = hour[s]['volume'].dropna().resample('60min', loffset='30min').sum()
         truehourh['open'] = hour[s]['open'].dropna().resample('60min', loffset='30min').first()
         truehourh['close']= hour[s]['close'].dropna().resample('60min', loffset='30min').last()
@@ -99,15 +105,14 @@ def get_hour_historical(symbols_h):
             for g in ftimes:
                 if g in str(i):
                     td.append(i)
-        hour[s] = hour[s].stop(td)
-
+        hour[s] = hour[s].drop(td)
 
         td = []
         for i in mins[s].index:
             for g in ftimes:
                 if g in str(i):
                     td.append(i)
-        mins[s] = mins[s].stop(td)
+        mins[s] = mins[s].drop(td)
     
 
     return mins, hour
@@ -131,8 +136,8 @@ target_prices[symbol] = data.close + (
 def run(tickers):
     # steam connection
     
-    conn = tradeapi.StreamConn(key_id=api_key_id, secret_key=api_secret)
-    
+    conn = tradeapi.StreamConn(base_url=base_url, key_id=api_key_id, secret_key=api_secret)
+
     # Update initial state with information from tickers
     
     symbols = tickers
@@ -141,8 +146,11 @@ def run(tickers):
     min5_history, hour_history = get_hour_historical(symbols)
 
     print(min5_history)
-    
     # Use trade updates to keep track of our portfolio
+    
+    @conn.on(r'trade_update')
+    async def handle_trade_update(conn, channel, data):
+        print("hi")
 
     @conn.on(r'A\..*')
     async def handle_second_bar(conn, channel, data):
@@ -291,7 +299,6 @@ def run(tickers):
             send_message(symbol, "Squeeze On")
 
         #print(type(symbol))
-        symbols.remove(symbol)
         """
         print(symbol)
         if len(symbols) <= 0:
@@ -324,9 +331,11 @@ def run(tickers):
     #
 
     channels = ['trade_updates']
-    for symbol in [symbol]:
-        symbol_channels = ['A.{}'.format(symbol), 'AM.{}'.format(symbol)]
+    print('wtfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
+    for s in symbols:
+        symbol_channels = ['A.{}'.format(s.ticker), 'AM.{}'.format(s.ticker)]
         channels += symbol_channels
+    print("watching {} symbols".format(len(symbols)))
     run_ws(conn, channels)
 
 
@@ -335,7 +344,7 @@ def run_ws(conn, channels):
     try:
         conn.run(channels)
     except Exception as e:
-        print(e)
+        #print(e)
         conn.close
         run_ws(conn, channels)
 
@@ -360,6 +369,8 @@ def get_tickers():
     assets = api.list_assets()
     symbols = [asset.symbol for asset in assets if asset.tradable]
 
+    return [ticker for ticker in tickers if (ticker.ticker in ['TTD', 'SPY', 'AMD', 'ROKU', 'PINS', "SQ", 'TSLA'])]
+    """
     return [ticker for ticker in tickers if (
         ticker.ticker in symbols and
         ticker.lastTrade['p'] >= min_share_price and
@@ -367,6 +378,7 @@ def get_tickers():
         ticker.prevDay['v'] * ticker.lastTrade['p'] > min_last_dv #and
         #ticker.todaysChangePerc >= 3.5
     )]
+    """
 
 if __name__ == "__main__":
     t = api.get_clock()
