@@ -19,6 +19,7 @@ An attempt to make a TTM Squeeze Indicator
 
 
 #read credentials in from json file
+
 cred = json.load(open("credentials.json"))
 base_url = cred['endpoint']
 api_key_id = cred['key']
@@ -38,12 +39,13 @@ api = tradeapi.REST(
 session = requests.session()
 
 
-sqzonl = False
-sqzoffl = False
-nosqzl = True
+#sqzonl = False
+#sqzoffl = False
+#nosqzl = True
+sqzl = {}
 
 #times to aggregate to (have to manually do 5 minute increments because polygon doesnt allow 5 min for some reason)
-ftimes = "16:00,16:05,16:10,16:15,16:20,16:25,16:30,16:35,16:40,16:45,16:50,16:55,17:00,17:05,17:10,17:15,17:20,17:25,17:30,17:35,17:40,17:45,17:50,17:55,18:00,18:05,18:10,18:15,18:20,18:25,18:30,18:35,18:40,18:45,18:50,18:55,19:00,19:05,19:10,19:15,19:20,19:25,19:30,19:35,19:40,19:45,19:50,19:55,20:00,20:05,20:10,20:15,20:20,20:25,20:30,20:35,20:40,20:45,20:50,20:55,21:00,21:05,21:10,21:15,21:20,21:25,21:30,21:35,21:40,21:45,21:50,21:55,22:00,22:05,22:10,22:15,22:20,22:25,22:30,22:35,22:40,22:45,22:50,22:55,23:00,23:05,23:10,23:15,23:20,23:25,23:30,23:35,23:40,23:45,23:50,23:55".split(",")
+ftimes = "8:30,8:35,8:40,8:45,8:50,8:55,9:00,9:05,9:10,9:15,9:20,9:25,9:30,9:35,9:40,9:45,9:50,9:55,10:00,10:05,10:10,10:15,10:20,10:25,10:30,10:35,10:40,10:45,10:50,10:55,11:00,11:05,11:10,11:15,11:20,11:25,11:30,11:35,11:40,11:45,11:50,11:55,12:00,12:05,12:10,12:15,12:20,12:25,12:30,12:35,12:40,12:45,12:50,12:55,13:00,13:05,13:10,13:15,13:20,13:25,13:30,13:35,13:40,13:45,13:50,13:55,14:00,14:05,14:10,14:15,14:20,14:25,14:30,14:35,14:40,14:45,14:50,14:55,15:00".split(",")
 
 
 min_share_price = 5.0
@@ -80,7 +82,7 @@ def get_hour_historical(symbols_h):
         s = s.ticker
         truemins = api.polygon.historic_agg(size="minute", symbol=s, limit=4320).df
         truehourh = copy.deepcopy(truemins)
-        
+        #print(truemins)
         count+=1
 
         mins[s] = copy.deepcopy(truemins)
@@ -89,7 +91,8 @@ def get_hour_historical(symbols_h):
         truemins['close']= mins[s]['close'].dropna().resample('5min', loffset='5min').last()
         truemins['high'] = mins[s]['high'].dropna().resample('5min', loffset='5min').max()
         truemins['low'] = mins[s]['low'].dropna().resample('5min', loffset='5min').min()
-        mins[s] = truemins.dropna().resample('60min', loffset='5min').sum()
+        #print(truemins)
+        mins[s] = truemins.dropna().resample('5min', loffset='5min').sum()
         
 
         hour[s] = copy.deepcopy(truemins)
@@ -103,14 +106,14 @@ def get_hour_historical(symbols_h):
         td = []
         for i in hour[s].index:
             for g in ftimes:
-                if g in str(i):
+                if str(i)[11:16] not in ftimes:
                     td.append(i)
         hour[s] = hour[s].drop(td)
 
         td = []
         for i in mins[s].index:
             for g in ftimes:
-                if g in str(i):
+                if str(i)[11:16] not in ftimes:
                     td.append(i)
         mins[s] = mins[s].drop(td)
     
@@ -142,6 +145,11 @@ def run(tickers):
     
     symbols = tickers
 
+    #initialize sqz states
+
+    for s in tickers:
+        sqzl[s.ticker] = [False, False, True]
+
     #minute_history = get_historical([symbol])
     min5_history, hour_history = get_hour_historical(symbols)
 
@@ -156,13 +164,14 @@ def run(tickers):
     async def handle_second_bar(conn, channel, data):
         symbol = data.symbol
         
-        global sqzonl
-        global sqzoffl
-        global nosqzl
+        #global sqzonl
+        #global sqzoffl
+        #global nosqzl
 
-        """sqzon = False
+        global sqzl
+        sqzon = False
         sqzoff = False
-        nosqz = False"""
+        nosqz = False
 
 
         ts = data.start
@@ -238,6 +247,8 @@ def run(tickers):
 
         print(bbl[-1], kcl[-1], bbh[-1], kch[-1])
 
+
+        
         sqzon = (bbl[-1]>kcl[-1]) and (bbh[-1]<kch[-1])
         sqzoff = bbl[-1]<kcl[-1] and bbh[-1]>kch[-1]
         nosqz = sqzon==False and sqzoff==False
@@ -255,30 +266,30 @@ def run(tickers):
 
         flag = -1
         #print("hi")
-        if sqzonl and sqzon:
+        if sqzl[symbol][0] and sqzon:
             pass
 
-        if sqzonl and sqzoff:
-            sqzonl = False
-            sqzoffl = True
+        if sqzl[symbol][0] and sqzoff:
+            sqzl[symbol][0] = False
+            sqzl[symbol][1] = True
             flag = 0
 
-        if sqzoffl and sqzoff:
+        if sqzl[symbol][1] and sqzoff:
             pass
 
-        if sqzoffl and sqzon:
-            sqzoffl = False
-            sqzonl = True
+        if sqzl[symbol][1] and sqzon:
+            sqzl[symbol][1] = False
+            sqzl[symbol][0] = True
             flag = 1
 
-        if nosqzl and sqzon:
-            nosqzl = False
-            sqzonl = True
+        if sqzl[symbol][2] and sqzon:
+            sqzl[symbol][2] = False
+            sqzl[symbol][0] = True
             flag = 1
 
-        if nosqzl and sqzoff:
-            nosqzl = False
-            sqzoffl = True
+        if sqzl[symbol][2] and sqzoff:
+            sqzl[symbol][2] = False
+            sqzl[symbol][1] = True
             print("sqeeze is OFF")
             print(time.time())
             flag = -1
@@ -289,11 +300,7 @@ def run(tickers):
         if flag == 0:
             send_message(symbol, "squeeze is POPPING")
             if(momentum[-1]>0):
-                send_message(symbol, "Positive Pop")
-                #add trading logic
-            else:
-                send_message(symbol, "Negative Pop")
-                #add trading logic
+                send_message(symbol, "Pop ::: " + str(momentum[-1]))
 
         if flag == 1:
             send_message(symbol, "Squeeze On")
@@ -331,7 +338,6 @@ def run(tickers):
     #
 
     channels = ['trade_updates']
-    print('wtfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
     for s in symbols:
         symbol_channels = ['A.{}'.format(s.ticker), 'AM.{}'.format(s.ticker)]
         channels += symbol_channels
@@ -385,10 +391,10 @@ if __name__ == "__main__":
     #print(get_hour_historical(["AMD"]))
     #print("symbol: ")
     #sym = input()
-    if t.is_open == False:
-        tillopen = (t.next_open - t.timestamp).total_seconds()
-        print("market closed. Sleep for ", int(tillopen), " seconds")
-        time.sleep(int(tillopen))
+    #if t.is_open == False:
+    #    tillopen = (t.next_open - t.timestamp).total_seconds()
+    #    print("market closed. Sleep for ", int(tillopen), " seconds")
+    #    time.sleep(int(tillopen))
     
     #print(sym)
     run(get_tickers())

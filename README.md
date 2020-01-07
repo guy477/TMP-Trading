@@ -10,3 +10,6 @@ Using the Alpaca Markets API alongside the Polygon API this program will take a 
 ## Updates
 * BEEN BUSY; SCHOOL JUST STARTED
 * Currently aggregating hour based data for a future idea combining both hour based data and day data.
+
+## Stocks to follow
+* ROKU responds well in a 15min timeframe.

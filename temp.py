@@ -1,3 +1,3 @@
-for i in range(1, 4):
-    for j in range(1, 4):
-        print("("+str(i)," "+ str(j)+") : "+str((i+j)/2))
+for i in range(8, 16):
+    for j in range(0, 60, 5):
+        print(str(i)+":"+str(j))
