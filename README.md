@@ -1,15 +1,14 @@
 # Trading
-Using the Alpaca Markets API alongside the Polygon API this program will take a given ticker symbol, listen to its live data stream, and email me when the TTM Squeeze indicators are triggered.
+Using the Alpaca Markets API alongside the Polygon API this program will watch a stock or stocks in real time and actively utilize the TTM Squeeze Indicator to alert the user through email about significant market activity.
 
 ## ToDo
-* when a squeeze 'pops,' trade based on momentum indicator.
-* Determine an exit plan.
+* combine indicators from both hour and 5min (or 15min) based data to minimize false signals.
+* Implementing live trading function.
 * Multiple time frames being tracked at once.
 * I will be expanding this to add more, different attempts. 
 
 ## Updates
-* BEEN BUSY; SCHOOL JUST STARTED
-* Currently aggregating hour based data for a future idea combining both hour based data and day data.
+* Hello. Just debugged alot of the logic and now it functions just as a TTM Squeeze indicator.
 
 ## Stocks to follow
 * ROKU responds well in a 15min timeframe.

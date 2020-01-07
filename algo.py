@@ -3,6 +3,7 @@ import requests
 import time
 import json
 import ta
+from ta import momentum
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression as lr
@@ -29,7 +30,6 @@ mailgunURL = cred['URL']
 email = cred['email']
 
 
-
 api = tradeapi.REST(
     base_url=base_url,
     key_id=api_key_id,
@@ -37,7 +37,6 @@ api = tradeapi.REST(
 )
 
 session = requests.session()
-
 
 #sqzonl = False
 #sqzoffl = False
@@ -242,9 +241,10 @@ def run(tickers):
         kchh = ta.keltner_channel_hband(hour_history[symbol]['high'],hour_history[symbol]['low'], hour_history[symbol]['close'], n=20)
 
 
-        momentumh = ta.momentum.rsi(min5_history[symbol]['close'], n=14)
-        momentum = ta.momentum.rsi(hour_history[symbol]['close'], n=14)
-
+        
+        mom = momentum.ao(min5_history[symbol]['high'], min5_history[symbol]['low'])
+        momh= momentum.ao(hour_history[symbol]['high'], hour_history[symbol]['low'])
+        
         print(bbl[-1], kcl[-1], bbh[-1], kch[-1])
 
 
@@ -298,9 +298,7 @@ def run(tickers):
         if flag == -1:
             print('No Change')
         if flag == 0:
-            send_message(symbol, "squeeze is POPPING")
-            if(momentum[-1]>0):
-                send_message(symbol, "Pop ::: " + str(momentum[-1]))
+            send_message(symbol, "Pop ::: " + str(mom[-1]))
 
         if flag == 1:
             send_message(symbol, "Squeeze On")
