@@ -42,6 +42,7 @@ session = requests.session()
 #sqzoffl = False
 #nosqzl = True
 sqzl = {}
+sqzhl = {}
 
 #times to aggregate to (have to manually do 5 minute increments because polygon doesnt allow 5 min for some reason)
 ftimes = "8:30,8:35,8:40,8:45,8:50,8:55,9:00,9:05,9:10,9:15,9:20,9:25,9:30,9:35,9:40,9:45,9:50,9:55,10:00,10:05,10:10,10:15,10:20,10:25,10:30,10:35,10:40,10:45,10:50,10:55,11:00,11:05,11:10,11:15,11:20,11:25,11:30,11:35,11:40,11:45,11:50,11:55,12:00,12:05,12:10,12:15,12:20,12:25,12:30,12:35,12:40,12:45,12:50,12:55,13:00,13:05,13:10,13:15,13:20,13:25,13:30,13:35,13:40,13:45,13:50,13:55,14:00,14:05,14:10,14:15,14:20,14:25,14:30,14:35,14:40,14:45,14:50,14:55,15:00".split(",")
@@ -168,10 +169,7 @@ def run(tickers):
         #global nosqzl
 
         global sqzl
-        sqzon = False
-        sqzoff = False
-        nosqz = False
-
+        global sqzhl
 
         ts = data.start
         print(data.symbol)
@@ -224,84 +222,9 @@ def run(tickers):
         hour_history[symbol].loc[ts] = new_data
 
         #print(min5_history[symbol].loc[ts])
-        bbh = ta.bollinger_hband(min5_history[symbol]['close'].dropna(), n = 20, ndev=2)
-        bbl = ta.bollinger_lband(min5_history[symbol]['close'].dropna(), n = 20, ndev=2)
-        bba = ta.bollinger_mavg(min5_history[symbol]['close'].dropna(), n=20)
-
-        kca = ta.keltner_channel_central(min5_history[symbol]['high'],min5_history[symbol]['low'], min5_history[symbol]['close'], n=20)
-        kcl = ta.keltner_channel_lband(min5_history[symbol]['high'],min5_history[symbol]['low'], min5_history[symbol]['close'], n=20)
-        kch = ta.keltner_channel_hband(min5_history[symbol]['high'],min5_history[symbol]['low'], min5_history[symbol]['close'], n=20)
-
-        bbhh = ta.bollinger_hband(hour_history[symbol]['close'].dropna(), n = 20, ndev=2)
-        bblh = ta.bollinger_lband(hour_history[symbol]['close'].dropna(), n = 20, ndev=2)
-        bbah = ta.bollinger_mavg(hour_history[symbol]['close'].dropna(), n=20)
-
-        kcah = ta.keltner_channel_central(hour_history[symbol]['high'],hour_history[symbol]['low'], hour_history[symbol]['close'], n=20)
-        kclh = ta.keltner_channel_lband(hour_history[symbol]['high'],hour_history[symbol]['low'], hour_history[symbol]['close'], n=20)
-        kchh = ta.keltner_channel_hband(hour_history[symbol]['high'],hour_history[symbol]['low'], hour_history[symbol]['close'], n=20)
-
-
         
-        mom = momentum.ao(min5_history[symbol]['high'], min5_history[symbol]['low'])
-        momh= momentum.ao(hour_history[symbol]['high'], hour_history[symbol]['low'])
-        
-        print(bbl[-1], kcl[-1], bbh[-1], kch[-1])
-
-
-        
-        sqzon = (bbl[-1]>kcl[-1]) and (bbh[-1]<kch[-1])
-        sqzoff = bbl[-1]<kcl[-1] and bbh[-1]>kch[-1]
-        nosqz = sqzon==False and sqzoff==False
-        
-        """
-        value = (Highest[lengthKC](high)+Lowest[lengthKC](low)+average[lengthKC](close))/3
-        val = linearregression[lengthKC](close-value)
-        """
-
-        val = (max(min5_history[symbol]['high'][-20:-1]) + min(min5_history[symbol]['low'][-20:-1]) + min5_history[symbol]['close'].mean())/3.0
-        v = lr(min5_history[symbol]['close'] - val)
-
-        valh = (max(hour_history[symbol]['high'][-20:-1]) + min(hour_history[symbol]['low'][-20:-1]) + hour_history[symbol]['close'].mean())/3.0
-        vh = lr(hour_history[symbol]['close'] - val)
-
-        flag = -1
-        #print("hi")
-        if sqzl[symbol][0] and sqzon:
-            pass
-
-        if sqzl[symbol][0] and sqzoff:
-            sqzl[symbol][0] = False
-            sqzl[symbol][1] = True
-            flag = 0
-
-        if sqzl[symbol][1] and sqzoff:
-            pass
-
-        if sqzl[symbol][1] and sqzon:
-            sqzl[symbol][1] = False
-            sqzl[symbol][0] = True
-            flag = 1
-
-        if sqzl[symbol][2] and sqzon:
-            sqzl[symbol][2] = False
-            sqzl[symbol][0] = True
-            flag = 1
-
-        if sqzl[symbol][2] and sqzoff:
-            sqzl[symbol][2] = False
-            sqzl[symbol][1] = True
-            print("sqeeze is OFF")
-            print(time.time())
-            flag = -1
-
-
-        if flag == -1:
-            print('No Change')
-        if flag == 0:
-            send_message(symbol, "Pop ::: " + str(mom[-1]))
-
-        if flag == 1:
-            send_message(symbol, "Squeeze On")
+        squeeze(min5_history, sqzl, symbol, "5min")
+        squeeze(hour_history, sqzhl, symbol, "hour")
 
         #print(type(symbol))
         """
@@ -364,6 +287,70 @@ def send_message(symbol, action):
 			"subject": "{} - {}".format(symbol, action),
 			"text": "Time: {}".format(n)})
 
+def squeeze(history, sqz, symbol, t):
+    bbh = ta.bollinger_hband(history[symbol]['close'].dropna(), n = 20, ndev=2)
+    bbl = ta.bollinger_lband(history[symbol]['close'].dropna(), n = 20, ndev=2)
+    bba = ta.bollinger_mavg(history[symbol]['close'].dropna(), n=20)
+
+    kca = ta.keltner_channel_central(history[symbol]['high'],history[symbol]['low'], history[symbol]['close'], n=20)
+    kcl = ta.keltner_channel_lband(history[symbol]['high'],history[symbol]['low'], history[symbol]['close'], n=20)
+    kch = ta.keltner_channel_hband(history[symbol]['high'],history[symbol]['low'], history[symbol]['close'], n=20)
+    
+    mom = momentum.ao(history[symbol]['high'], history[symbol]['low'])
+    momh= momentum.ao(history[symbol]['high'], history[symbol]['low'])
+    
+    print(bbl[-1], kcl[-1], bbh[-1], kch[-1])
+    
+    sqzon = (bbl[-1]>kcl[-1]) and (bbh[-1]<kch[-1])
+    sqzoff = bbl[-1]<kcl[-1] and bbh[-1]>kch[-1]
+    nosqz = sqzon==False and sqzoff==False
+    
+    """
+    value = (Highest[lengthKC](high)+Lowest[lengthKC](low)+average[lengthKC](close))/3
+    val = linearregression[lengthKC](close-value)
+
+    val = (max(history[symbol]['high'][-20:-1]) + min(history[symbol]['low'][-20:-1]) + history[symbol]['close'].mean())/3.0
+    v = lr(history[symbol]['close'] - val)
+    """
+
+    flag = -1
+    #print("hi")
+    if sqz[symbol][0] and sqzon:
+        pass
+
+    if sqz[symbol][0] and sqzoff:
+        sqz[symbol][0] = False
+        sqz[symbol][1] = True
+        flag = 0
+
+    if sqz[symbol][1] and sqzoff:
+        pass
+
+    if sqz[symbol][1] and sqzon:
+        sqz[symbol][1] = False
+        sqz[symbol][0] = True
+        flag = 1
+
+    if sqz[symbol][2] and sqzon:
+        sqz[symbol][2] = False
+        sqz[symbol][0] = True
+        flag = 1
+
+    if sqz[symbol][2] and sqzoff:
+        sqz[symbol][2] = False
+        sqz[symbol][1] = True
+        print("sqeeze is OFF")
+        print(time.time())
+        flag = -1
+
+
+    if flag == -1:
+        print('No Change')
+    if flag == 0:
+        send_message(symbol, t + " pop : " + str(mom[-1]))
+
+    if flag == 1:
+        send_message(symbol, "Squeeze On "+ t)
 
 def get_tickers():
     print('Getting current ticker data...')
