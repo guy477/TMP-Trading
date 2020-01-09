@@ -82,7 +82,6 @@ def get_hour_historical(symbols_h):
         s = s.ticker
         truemins = api.polygon.historic_agg(size="minute", symbol=s, limit=4320).df
         truehourh = copy.deepcopy(truemins)
-        #print(truemins)
         count+=1
 
         mins[s] = copy.deepcopy(truemins)
@@ -109,13 +108,14 @@ def get_hour_historical(symbols_h):
                 if str(i)[11:16] not in ftimes:
                     td.append(i)
         hour[s] = hour[s].drop(td)
-
+        hour[s] = hour[s].drop(hour[s][hour[s]['volume'] == 0].index)
         td = []
         for i in mins[s].index:
             for g in ftimes:
                 if str(i)[11:16] not in ftimes:
                     td.append(i)
         mins[s] = mins[s].drop(td)
+        mins[s] = mins[s].drop(mins[s][mins[s]['volume'] == 0].index)
     
 
     return mins, hour
@@ -149,11 +149,13 @@ def run(tickers):
 
     for s in tickers:
         sqzl[s.ticker] = [False, False, True]
+        sqzhl[s.ticker] = [False, False, True]
 
     #minute_history = get_historical([symbol])
     min5_history, hour_history = get_hour_historical(symbols)
 
-    print(min5_history)
+    print(min5_history['SPY'])
+    print(hour_history['SPY'])
     # Use trade updates to keep track of our portfolio
     
     @conn.on(r'trade_update')
@@ -360,7 +362,7 @@ def get_tickers():
     assets = api.list_assets()
     symbols = [asset.symbol for asset in assets if asset.tradable]
 
-    return [ticker for ticker in tickers if (ticker.ticker in ['TTD', 'SPY', 'AMD', 'ROKU', 'PINS', "SQ", 'TSLA'])]
+    return [ticker for ticker in tickers if (ticker.ticker in ['TTD', 'SPY', 'AMD', 'ROKU', 'PINS', "SQ", 'TSLA', 'LULU', 'WORK', 'MSFT', 'DIS', 'KO', 'ATVI'])]
     """
     return [ticker for ticker in tickers if (
         ticker.ticker in symbols and
