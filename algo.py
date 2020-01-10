@@ -154,8 +154,6 @@ def run(tickers):
     #minute_history = get_historical([symbol])
     min5_history, hour_history = get_hour_historical(symbols)
 
-    print(min5_history['SPY'])
-    print(hour_history['SPY'])
     # Use trade updates to keep track of our portfolio
     
     @conn.on(r'trade_update')
@@ -246,9 +244,24 @@ def run(tickers):
     @conn.on(r'AM\..*')
     async def handle_minute_bar(conn, channel, data):
         ts = data.start
-        ts -= timedelta(minutes= ts.minute//5, seconds=ts.second, microseconds=ts.microsecond)
-        current = min5_history[data.symbol].loc[ts]
-        min5_history[data.symbol].loc[ts] = [
+
+
+        #5 Minute Data
+        tm = ts - timedelta(minutes= ts.minute//5, seconds=ts.second, microseconds=ts.microsecond)
+        current = min5_history[data.symbol].loc[tm]
+        min5_history[data.symbol].loc[tm] = [
+            data.open,
+            data.high if data.high > current.high else current.high,
+            data.low if data.low < current.low else current.low,
+            data.close,
+            data.volume+current.volume
+        ]
+
+
+        #Hour Data
+        th = ts - timedelta(hour = 1 - ts.minute//30,minutes= ts.minute - 30, seconds=ts.second, microseconds=ts.microsecond)
+        current = hour_history[data.symbol].loc[th]
+        hour_history[data.symbol].loc[th] = [
             data.open,
             data.high if data.high > current.high else current.high,
             data.low if data.low < current.low else current.low,
@@ -378,10 +391,10 @@ if __name__ == "__main__":
     #print(get_hour_historical(["AMD"]))
     #print("symbol: ")
     #sym = input()
-    #if t.is_open == False:
-    #    tillopen = (t.next_open - t.timestamp).total_seconds()
-    #    print("market closed. Sleep for ", int(tillopen), " seconds")
-    #    time.sleep(int(tillopen))
+    if t.is_open == False:
+        tillopen = (t.next_open - t.timestamp).total_seconds()
+        print("market closed. Sleep for ", int(tillopen), " seconds")
+        time.sleep(int(tillopen))
     
     #print(sym)
     run(get_tickers())
