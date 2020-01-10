@@ -173,7 +173,7 @@ def run(tickers):
 
         ts = data.start
         print(data.symbol)
-        ts -= timedelta(minutes= ts.minute//5, seconds=ts.second, microseconds=ts.microsecond)
+        tm = ts - timedelta(minutes= ts.minute%5, seconds=ts.second, microseconds=ts.microsecond)
         try:
             current = min5_history[data.symbol].loc[ts]
         except KeyError:
@@ -198,6 +198,10 @@ def run(tickers):
     
         min5_history[symbol].loc[ts] = new_data
 
+
+        th = ts - timedelta(hours = 1 - ts.minute//30,minutes= ts.minute - 30, seconds=ts.second, microseconds=ts.microsecond)
+        print(th)
+        print(tm)
         try:
             current = hour_history[data.symbol].loc[ts]
         except KeyError:
@@ -225,16 +229,21 @@ def run(tickers):
         
         squeeze(min5_history, sqzl, symbol, "5min")
         squeeze(hour_history, sqzhl, symbol, "hour")
+        
+
+        if(not api.get_clock().is_open):
+            if len(symbols) <= 0:
+                conn.close()
+                start()
+            conn.deregister([
+            'AM.{}'.format(symbol),
+            'A.{}'.format(symbol)
+        ])
+            
 
         #print(type(symbol))
         """
         print(symbol)
-        if len(symbols) <= 0:
-            conn.close()
-        conn.deregister([
-            'A.{}'.format(symbol),
-            'AM.{}'.format(symbol)
-        ])
         """
 
     # Replace aggregated 1s bars with incoming 1m bars
@@ -259,7 +268,7 @@ def run(tickers):
 
 
         #Hour Data
-        th = ts - timedelta(hour = 1 - ts.minute//30,minutes= ts.minute - 30, seconds=ts.second, microseconds=ts.microsecond)
+        th = ts - timedelta(hours = 1 - ts.minute//30,minutes= ts.minute - 30, seconds=ts.second, microseconds=ts.microsecond)
         current = hour_history[data.symbol].loc[th]
         hour_history[data.symbol].loc[th] = [
             data.open,
@@ -268,7 +277,11 @@ def run(tickers):
             data.close,
             data.volume+current.volume
         ]
-        #print(min5_history)
+        print("---------------------------------------------------------------------")
+        print(th, ts)
+
+        print(min5_history)
+        print(hour_history)
     
     #have to aggregate minute data into hour based data.
     #
@@ -312,7 +325,6 @@ def squeeze(history, sqz, symbol, t):
     kch = ta.keltner_channel_hband(history[symbol]['high'],history[symbol]['low'], history[symbol]['close'], n=20)
     
     mom = momentum.ao(history[symbol]['high'], history[symbol]['low'])
-    momh= momentum.ao(history[symbol]['high'], history[symbol]['low'])
     
     print(bbl[-1], kcl[-1], bbh[-1], kch[-1])
     
@@ -386,15 +398,17 @@ def get_tickers():
     )]
     """
 
-if __name__ == "__main__":
+def start():
     t = api.get_clock()
-    #print(get_hour_historical(["AMD"]))
-    #print("symbol: ")
-    #sym = input()
     if t.is_open == False:
-        tillopen = (t.next_open - t.timestamp).total_seconds()
-        print("market closed. Sleep for ", int(tillopen), " seconds")
-        time.sleep(int(tillopen))
-    
+            tillopen = (t.next_open - t.timestamp).total_seconds()
+            print("market closed. Sleep for ", int(tillopen), " seconds")
+            time.sleep(int(tillopen))
+        
     #print(sym)
     run(get_tickers())
+
+if __name__ == "__main__":
+    run(get_tickers())
+    #start()
+    
