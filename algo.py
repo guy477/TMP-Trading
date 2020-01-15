@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression as lr
 from datetime import datetime, timedelta
 from pytz import timezone
+from threading import Thread
 import time
 import copy
 import pytz
@@ -171,8 +172,10 @@ def run(tickers):
         global sqzl
         global sqzhl
 
-        ts = data.start
         print(data.symbol)
+
+        #add latest second data to 5min dataframe  
+        ts = data.start
         tm = ts - timedelta(minutes= ts.minute%5, seconds=ts.second, microseconds=ts.microsecond)
         try:
             current = min5_history[data.symbol].loc[ts]
@@ -199,9 +202,9 @@ def run(tickers):
         min5_history[symbol].loc[ts] = new_data
 
 
+        #add latest second data to hour dataframe
         th = ts - timedelta(hours = 1 - ts.minute//30,minutes= ts.minute - 30, seconds=ts.second, microseconds=ts.microsecond)
-        print(th)
-        print(tm)
+
         try:
             current = hour_history[data.symbol].loc[ts]
         except KeyError:
@@ -227,7 +230,8 @@ def run(tickers):
 
         #print(min5_history[symbol].loc[ts])
         
-        squeeze(min5_history, sqzl, symbol, "5min")
+        thread = Thread(target=squeeze, args=(min5_history, sqzl, symbol, "5min"))
+        #squeeze(min5_history, sqzl, symbol, "5min")
         squeeze(hour_history, sqzhl, symbol, "hour")
         
 
@@ -387,7 +391,7 @@ def get_tickers():
     assets = api.list_assets()
     symbols = [asset.symbol for asset in assets if asset.tradable]
 
-    return [ticker for ticker in tickers if (ticker.ticker in ['TTD', 'SPY', 'AMD', 'ROKU', 'PINS', "SQ", 'TSLA', 'LULU', 'WORK', 'MSFT', 'DIS', 'KO', 'ATVI'])]
+    return [ticker for ticker in tickers if (ticker.ticker in ['TTD', 'SPY', 'AMD', 'ROKU', 'PINS', "SQ", 'TSLA', 'LULU', 'WORK', 'MSFT', 'DIS', 'KO', 'ATVI', 'SHOP', 'PYPL', 'KO', 'SNAP', 'T'])]
     """
     return [ticker for ticker in tickers if (
         ticker.ticker in symbols and
@@ -406,9 +410,12 @@ def start():
             time.sleep(int(tillopen))
         
     #print(sym)
+
+    
+
     run(get_tickers())
 
 if __name__ == "__main__":
-    run(get_tickers())
-    #start()
+    #run(get_tickers())
+    start()
     
