@@ -1,6 +1,9 @@
 # Trading
 Using the Alpaca Markets API alongside the Polygon API this program will watch a stock or stocks in real time and actively utilize the TTM Squeeze Indicator to alert the user through email about significant market activity.
 
+
+
+
 ## ToDo
 * Transition over to Day based data
 * Implementing live trading function.

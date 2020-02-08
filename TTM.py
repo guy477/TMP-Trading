@@ -2,7 +2,7 @@ import alpaca_trade_api as tradeapi
 import requests
 import time
 import json
-import ta
+import ta.volatility as ta
 from ta import momentum
 import numpy as np
 import pandas as pd
@@ -13,7 +13,6 @@ from threading import Thread
 import time
 import copy
 import pytz
-
 
 """
 An attempt to make a TTM Squeeze Indicator
@@ -29,6 +28,8 @@ api_secret = cred['secret']
 mailgun = cred['mailgun']
 mailgunURL = cred['URL']
 email = cred['email']
+
+
 
 
 api = tradeapi.REST(
@@ -81,7 +82,7 @@ def get_hour_historical(symbols_h):
     print("min5_history")
     for s in symbols_h:
         s = s.ticker
-        truemins = api.polygon.historic_agg(size="minute", symbol=s, limit=4320).df
+        truemins = api.polygon.historic_agg(size="minute", symbol=s, limit=1260).df
         truehourh = copy.deepcopy(truemins)
         count+=1
 
@@ -102,7 +103,9 @@ def get_hour_historical(symbols_h):
         truehourh['high'] = hour[s]['high'].dropna().resample('60min', loffset='30min').max()
         truehourh['low'] = hour[s]['low'].dropna().resample('60min', loffset='30min').min()
         hour[s] = truehourh.dropna().resample('60min', loffset='30min').sum()
+
         #index = test[test[]]
+        
         td = []
         for i in hour[s].index:
             for g in ftimes:
@@ -155,13 +158,16 @@ def run(tickers):
     #minute_history = get_historical([symbol])
     min5_history, hour_history = get_hour_historical(symbols)
 
+    print('running')
+    #print (hour_history)
+
     # Use trade updates to keep track of our portfolio
     
-    @conn.on(r'trade_update')
+    @conn.on('trade_update')
     async def handle_trade_update(conn, channel, data):
         print("hi")
 
-    @conn.on(r'A\..*')
+    @conn.on('A.*')
     async def handle_second_bar(conn, channel, data):
         symbol = data.symbol
         
@@ -172,11 +178,11 @@ def run(tickers):
         global sqzl
         global sqzhl
 
-        print(data.symbol)
+        #print(data.symbol)
 
         #add latest second data to 5min dataframe  
         ts = data.start
-        tm = ts - timedelta(minutes= ts.minute%5, seconds=ts.second, microseconds=ts.microsecond)
+        tm = ts - timedelta(hours = 1, minutes= ts.minute%5, seconds=ts.second, microseconds=ts.microsecond)
         try:
             current = min5_history[data.symbol].loc[ts]
         except KeyError:
@@ -196,10 +202,10 @@ def run(tickers):
                 data.high if data.high > current.high else current.high,
                 data.low if data.low < current.low else current.low,
                 data.close,
-                current.volume + data.volume
+                current.volume
             ]
     
-        min5_history[symbol].loc[ts] = new_data
+        min5_history[symbol].loc[tm] = new_data
 
 
         #add latest second data to hour dataframe
@@ -224,43 +230,41 @@ def run(tickers):
                 data.high if data.high > current.high else current.high,
                 data.low if data.low < current.low else current.low,
                 data.close,
-                current.volume + data.volume
+                current.volume
             ]
-        hour_history[symbol].loc[ts] = new_data
+        hour_history[symbol].loc[th] = new_data
 
         #print(min5_history[symbol].loc[ts])
         
         thread = Thread(target=squeeze, args=(min5_history, sqzl, symbol, "5min"))
-        #squeeze(min5_history, sqzl, symbol, "5min")
+        squeeze(min5_history, sqzl, symbol, "5min")
         squeeze(hour_history, sqzhl, symbol, "hour")
-        
 
         if(not api.get_clock().is_open):
+            symbols.remove(symbol)
             if len(symbols) <= 0:
                 conn.close()
                 start()
             conn.deregister([
             'AM.{}'.format(symbol),
             'A.{}'.format(symbol)
-        ])
-            
-
-        #print(type(symbol))
-        """
-        print(symbol)
-        """
+    ])
+        
 
     # Replace aggregated 1s bars with incoming 1m bars
 
     #IDEA: RUN A MINUTE BASED TTM SQUEEZE ALGORITHM AND AN HOUR BASED ALGORITHM.
     #CURRENT: Aggregates new minute bar data to help resolve any potential data loss from the second based data.
-    @conn.on(r'AM\..*')
+    @conn.on('AM.*')
     async def handle_minute_bar(conn, channel, data):
         ts = data.start
 
-
+        #print(min5_history)
+        #print(hour_history)
+        
         #5 Minute Data
-        tm = ts - timedelta(minutes= ts.minute//5, seconds=ts.second, microseconds=ts.microsecond)
+        tm = ts - timedelta(hours = 1, minutes= ts.minute%5, seconds=ts.second, microseconds=ts.microsecond)
+        print(tm)
         current = min5_history[data.symbol].loc[tm]
         min5_history[data.symbol].loc[tm] = [
             data.open,
@@ -273,6 +277,7 @@ def run(tickers):
 
         #Hour Data
         th = ts - timedelta(hours = 1 - ts.minute//30,minutes= ts.minute - 30, seconds=ts.second, microseconds=ts.microsecond)
+        print(th)
         current = hour_history[data.symbol].loc[th]
         hour_history[data.symbol].loc[th] = [
             data.open,
@@ -281,20 +286,27 @@ def run(tickers):
             data.close,
             data.volume+current.volume
         ]
-        print("---------------------------------------------------------------------")
-        print(th, ts)
-
+        print('------------------------------------hour------------------------------------')
+        print(hour_history[data.symbol].loc[th])
+        print('------------------------------------mins------------------------------------')
+        print(min5_history[data.symbol].loc[tm])
+        print("----------------------------------------------------------------------------")
         print(min5_history)
-        print(hour_history)
+        print(ts, tm, th)
+
+        #print(min5_history)
+        #print(hour_history)
     
     #have to aggregate minute data into hour based data.
     #
 
     channels = ['trade_updates']
     for s in symbols:
+        print(s.ticker)
         symbol_channels = ['A.{}'.format(s.ticker), 'AM.{}'.format(s.ticker)]
         channels += symbol_channels
     print("watching {} symbols".format(len(symbols)))
+    print(channels)
     run_ws(conn, channels)
 
 
@@ -303,7 +315,7 @@ def run_ws(conn, channels):
     try:
         conn.run(channels)
     except Exception as e:
-        #print(e)
+        print(e)
         conn.close
         run_ws(conn, channels)
 
@@ -330,7 +342,7 @@ def squeeze(history, sqz, symbol, t):
     
     mom = momentum.ao(history[symbol]['high'], history[symbol]['low'])
     
-    print(bbl[-1], kcl[-1], bbh[-1], kch[-1])
+    #print(bbl[-1], kcl[-1], bbh[-1], kch[-1])
     
     sqzon = (bbl[-1]>kcl[-1]) and (bbh[-1]<kch[-1])
     sqzoff = bbl[-1]<kcl[-1] and bbh[-1]>kch[-1]
@@ -370,13 +382,14 @@ def squeeze(history, sqz, symbol, t):
     if sqz[symbol][2] and sqzoff:
         sqz[symbol][2] = False
         sqz[symbol][1] = True
-        print("sqeeze is OFF")
-        print(time.time())
+        #print("sqeeze is OFF")
+        #print(time.time())
         flag = -1
 
 
     if flag == -1:
-        print('No Change')
+        #print('No Change')
+        pass
     if flag == 0:
         send_message(symbol, t + " pop : " + str(mom[-1]))
 
@@ -390,8 +403,8 @@ def get_tickers():
     print('Success.')
     assets = api.list_assets()
     symbols = [asset.symbol for asset in assets if asset.tradable]
-
-    return [ticker for ticker in tickers if (ticker.ticker in ['TTD', 'SPY', 'AMD', 'ROKU', 'PINS', "SQ", 'TSLA', 'LULU', 'WORK', 'MSFT', 'DIS', 'KO', 'ATVI', 'SHOP', 'PYPL', 'KO', 'SNAP', 'T'])]
+    
+    return [ticker for ticker in tickers if (ticker.ticker in ['AMD', 'PINS', "SQ", 'TSLA', 'LULU', 'WORK', 'KO', 'ATVI', 'SHOP', 'PYPL', 'KO', 'SNAP', 'WORK'])]
     """
     return [ticker for ticker in tickers if (
         ticker.ticker in symbols and
@@ -406,11 +419,11 @@ def start():
     t = api.get_clock()
     if t.is_open == False:
             tillopen = (t.next_open - t.timestamp).total_seconds()
-            print("market closed. Sleep for ", int(tillopen), " seconds")
+            print("market closed. Sleep for ", int(tillopen)-60, " seconds")
             time.sleep(int(tillopen))
         
-    #print(sym)
-
+    print(sym)
+    print('hi')
     
 
     run(get_tickers())

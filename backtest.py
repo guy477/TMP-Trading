@@ -27,7 +27,7 @@ class KeltnerChannel(Indicator):
     as well as a Lower Envelope below the Middle Line.
 
     Formula:
-      - midband = Exponential Moving Average
+      - midband = Exponential Moving Average(close, period)
       - topband = Exponential Moving Average + 2*(Average True Range)(data, period)
       - botband = Exponential Moving Average - 2*(Average True Range)(data, period)
 
