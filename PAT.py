@@ -311,12 +311,11 @@ def predict(hmm, histT, startInd, endInd, lookBack, plot):
 
 
 # The data we get will be all over the place. this will "standardize" the datapoints we see.
-# This will greatly increase the HMM's effectiveness and how well we can train the model.
+# This can greatly increase the predict functions overall speed.
+# POTENTIAL OPTIMIZATION SPEED UP SOLUTION.
 def possibleDataVals(fracS, fracHS, fracLS):
     print("Defining possibleoutcomes")
     return np.array(list(itertools.product(np.linspace(-.1, .1, fracS), np.linspace(0, .1, fracHS), np.linspace(0, .1, fracLS))))
-
-
 
 def plotter(data, dataP, dataPO, name):
     #print(data)
