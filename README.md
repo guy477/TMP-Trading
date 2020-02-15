@@ -12,7 +12,8 @@ true price action.
 ## Updates
 * Hello! This new project will try to analyze true volumetric price action data using a hidden markov model.
 * THE HMM WILL NOT BE PUSHED. I USE ALOT OF CODE I WROTE IN A CLASS I TOOK IN THE PAST. PUBLISHING IS AGAINST HONOUR CODE.
-
+* Given the difficulties (and required funds) to acquire minute based data, this may turn to a crypto analyzer thanks to the availability of data. 
+* https://github.com/Zombie-3000/Bitfinex-historical-data
 
 # Old/Depreciated (TTM.py)
 
