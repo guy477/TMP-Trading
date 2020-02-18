@@ -13,6 +13,7 @@ from threading import Thread
 import time
 import copy
 import pytz
+from yahoo_fin import stock_info as si
 
 """
 An attempt to make a TTM Squeeze Indicator
@@ -58,20 +59,6 @@ min_last_dv = 2500000
 #default_stop = .95
 
 
-def get_historical(symbols_h):
-    print("History")
-
-    minn = {}
-    day = {}
-    coun = 0
-    print(symbols_h)
-    for s in symbols_h:
-        
-        day[s] = api.polygon.historic_agg(size="minute", symbol=s, limit=1200).df
-        coun+=1
-    print("{}/{}".format(coun, len(symbols_h)))
-    print(day[symbols_h[0]])
-    return day
 
 def get_hour_historical(symbols_h):
     
@@ -415,18 +402,37 @@ def get_tickers():
     )]
     """
 
+def get_historical(symbols_h):
+    print("History")
+
+    minn = {}
+    day = {}
+    coun = 0
+    print(symbols_h)
+    for s in symbols_h:
+        
+        day[s] = api.polygon.historic_agg(size="hour", symbol=s, limit=2160).df
+        coun+=1
+    print("{}/{}".format(coun, len(symbols_h)))
+    print(day[symbols_h[0]])
+    return day
+
+
 def start():
     t = api.get_clock()
-    if t.is_open == False:
-            tillopen = (t.next_open - t.timestamp).total_seconds()
-            print("market closed. Sleep for ", int(tillopen)-60, " seconds")
-            time.sleep(int(tillopen))
+    #if t.is_open == False:
+    #        tillopen = (t.next_open - t.timestamp).total_seconds()
+    #        print("market closed. Sleep for ", int(tillopen)-60, " seconds")
+    #        time.sleep(int(tillopen))
         
-    print(sym)
-    print('hi')
+    #print(sym)
+    #print('hi')
     
+    amd = si.get_data('AMD', interval='1h')
 
-    run(get_tickers())
+    #print(get_historical(['AMD', 'SPY', 'GPRO', 'GE', 'WM', 'TWTR', 'SQ', 'KO', 'DIS', 'MSFT', 'SNAP']))
+
+    #run(get_tickers())
 
 if __name__ == "__main__":
     #run(get_tickers())
