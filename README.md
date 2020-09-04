@@ -7,10 +7,10 @@ Train various Gaussian-Hidden Markov Models to make predictions during common ma
 
 ## Updates
 * Hello! This new project will try to analyze true volumetric price action data using a hidden markov model.
-* After investigating the left-most portion of the bimodial graph (smaller volumetric periods), I achieved a consistent 65% success rate on both the bull and bear periods.
+* After investigating the left-most portion of the bimodial graph (smaller volumetric periods), I achieved a consistent 65% success rate on both the bull and bear periods. (*check update section*)
 * Currently the models seem to generate bimodial graphs during optimization with the peaks appearing on extremely small volumetric periods (~2-4 minutes on aversge - where True price actions lies) and on the larger time frames (~1.5 to 2 days - where institutional trading exists). 
-* The smaller volumetric periods (~2 - 4 min average) see success rates (in regards to determining the direction of the next period) hovering around 60% - 65%.
-* The larger volumetric periods (~1.5 - 2 days average) see success rates hovering around 58%.
+* The smaller volumetric periods (~2 - 4 min average) see success rates (in regards to determining the direction of the next period) hovering around 60% - 65%. (*check update section*)
+* The larger volumetric periods (~1.5 - 2 days average) see success rates hovering around 58%. (*check update section*)
 
 # Old/Depreciated (TTM.py/backtest.py)
 
@@ -20,5 +20,7 @@ As the current project develops, I will begin to interweave the live trading/ana
 * Use EMA/other indicators to determine trends. Parse Historic data to generate sub-datasets that the future indicators would consider "bullish," "bearish," "channeling," etc.
 
 ## Updates
+* It should be noted that these statistics are plagued by model overfitting. More or less, this is just a proof of concept.
+
 * I might or might not continue to work on this project. Currently, indicators are useful to get a visual/wholistic understanding of the market, but when applied against the market results are noisy.
 Perhaps moving over to day based data will work or greatly help, but that would strip the need for the program to be live.

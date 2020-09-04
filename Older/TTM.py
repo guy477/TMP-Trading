@@ -411,7 +411,7 @@ def get_historical(symbols_h):
     print(symbols_h)
     for s in symbols_h:
         
-        day[s] = api.polygon.historic_agg(size="hour", symbol=s, limit=2160).df
+        day[s] = api.polygon.historic_agg(size="minute", symbol=s, limit=2160).df
         coun+=1
     print("{}/{}".format(coun, len(symbols_h)))
     print(day[symbols_h[0]])
